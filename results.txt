@@ -15,3 +15,6 @@ exp8 mse_gd | CV mean F1 0.0 | std 0.0
 exp8 mse_sgd | CV mean F1 0.147 | std 0.0197
 exp8 logistic | CV mean F1 0.4285 | std 0.0029
 exp8 reg_logistic | CV mean F1 0.4281 | std 0.0035
+exp9 weights w_pos 1 | CV mean F1 0.4281 | std 0.0035
+exp9 weights w_pos 3 | CV mean F1 0.4287 | std 0.0033
+exp9 weights w_pos 10 | CV mean F1 0.4276 | std 0.003
