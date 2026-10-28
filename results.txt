@@ -7,3 +7,5 @@ exp5 lambda 1e-05 iters 1000 | val F1 0.4305
 exp5 lambda 0.0001 iters 1000 | val F1 0.4304
 exp5 lambda 0.001 iters 1000 | val F1 0.4315
 exp5 lambda 0.01 iters 1000 | val F1 0.4299
+exp6 squares lambda 0.001 iters 1000 | val F1 0.4299
+exp6 squares lambda 0.001 iters 1000 | val F1 0.4315
