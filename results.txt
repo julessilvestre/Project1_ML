@@ -9,3 +9,4 @@ exp5 lambda 0.001 iters 1000 | val F1 0.4315
 exp5 lambda 0.01 iters 1000 | val F1 0.4299
 exp6 squares lambda 0.001 iters 1000 | val F1 0.4299
 exp6 squares lambda 0.001 iters 1000 | val F1 0.4315
+exp7 5-fold CV (exp5 setup) | mean F1 0.4282 | std 0.0028
