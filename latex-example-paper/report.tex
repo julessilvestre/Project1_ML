@@ -12,7 +12,7 @@
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 
-% Placeholders for the parts teammates still have to fill in
+% Placeholders for parts still to fill in
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 
 \begin{document}
@@ -28,24 +28,23 @@ School of Computer and Communication Sciences, EPFL, Switzerland}
 \begin{abstract}
 We predict coronary heart disease (MICHD) from 321 self-reported features of
 the 2015 BRFSS survey, covering 328{,}135 respondents of whom only 8.8\% are
-positive. Using only NumPy, we compare the six linear methods of the course on
-one shared preprocessing pipeline and evaluate them with 5-fold cross-validated
-F1. Treating the survey's ``don't know/refused'' codes as missing values and
-one-hot encoding categorical answers gives the largest improvement
-(+0.017 F1), whereas regularization strength, squared features and class
-weighting change nothing beyond noise. Our best linear model, regularized
-logistic regression with an F1-tuned threshold, reaches a CV F1 of
-$0.428 \pm 0.003$ and a test F1 of 0.440.
-\todo{one sentence on the SVM and the final model}
+positive. Using only NumPy, we compare the six linear methods of the course
+and an $L_2$-regularized SVM on one shared preprocessing pipeline, evaluated
+with 5-fold cross-validated F1. Treating the survey's ``don't know/refused''
+codes as missing values and one-hot encoding categorical answers gives the
+largest improvement (+0.017 F1), whereas regularization strength, squared
+features and class weighting change nothing beyond noise. Logistic regression
+with an F1-tuned decision threshold is the best model (CV F1
+$0.429 \pm 0.003$, test F1 0.440); the SVM stays about 0.01 below it.
 \end{abstract}
 
 \section{Introduction}
 
 Cardiovascular diseases are among the leading causes of death worldwide, and
 early identification of people at risk can support prevention. We predict
-whether a respondent of the Behavioral Risk Factor Surveillance System (BRFSS)
-reports coronary heart disease from their lifestyle and health answers, as a
-binary classification problem.
+whether a respondent of the Behavioral Risk Factor Surveillance System
+(BRFSS)~\cite{brfss} reports coronary heart disease from their lifestyle and
+health answers, as a binary classification problem.
 
 The data is hard for three reasons. Many questions are asked only to some
 respondents, so most columns are largely empty. Answers such as ``don't know''
@@ -55,10 +54,9 @@ so accuracy is misleading and we optimize F1 instead.
 
 Our contributions are: (i) a preprocessing pipeline that handles survey codes,
 missing values and categorical answers using only training statistics;
-(ii) a comparison of the six required linear methods on identical data and
+(ii) a comparison of the six required methods and an SVM on identical data and
 identical cross-validation folds; and (iii) an ablation study showing which
-steps improve F1 and which do not. \todo{add the SVM contribution if it is the
-final model}
+steps improve F1 and which do not.
 
 \section{Models and Methods}
 
@@ -80,7 +78,8 @@ below are computed on the training set and applied unchanged to the test set.
   are treated as categorical. Each becomes one indicator per value plus one
   ``missing'' indicator, giving 277 binary features.
   \item \textbf{Numeric features.} The remaining 145 columns are imputed with
-  the training median and standardized to zero mean and unit variance.
+  the training median and standardized to zero mean and unit variance
+  (z-score rather than min-max scaling, which is less sensitive to outliers).
   \item \textbf{Bias.} A constant column is added, for 423 features in total.
 \end{enumerate}
 
@@ -88,32 +87,37 @@ below are computed on the training set and applied unchanged to the test set.
 
 We use the six methods of the course: least squares, ridge regression
 ($\lambda = 10^{-4}$), linear regression with the MSE loss by gradient descent
-(GD) and by stochastic gradient descent (SGD, batch size 1), logistic
-regression, and $L_2$-regularized logistic regression ($\lambda = 10^{-3}$,
-$\gamma = 0.5$, 500 iterations, zero initialization). Regression models output
-a score; logistic models output a probability through the sigmoid $\sigma$.
+(GD, $\gamma = 0.1$) and by stochastic gradient descent (SGD, batch size 1,
+$10^5$ steps, $\gamma = 10^{-3}$), logistic regression, and $L_2$-regularized
+logistic regression ($\lambda = 10^{-3}$, $\gamma = 0.5$, 500 iterations, zero
+initialization). Regression models output a score; logistic models output a
+probability through the sigmoid $\sigma$.
 
-To test whether the class imbalance should be handled in the loss, we also
-implement a weighted logistic regression in which positive examples get
-weight $w_+ \in \{3, 10\}$ and negatives weight 1. Its gradient is
+\textbf{Weighted logistic regression.} To test whether the class imbalance
+should be handled in the loss, positive examples get weight
+$w_+ \in \{3, 10\}$ and negatives weight 1, with gradient
 \begin{equation}
 \nabla L(w) = \frac{1}{\sum_n c_n} X^\top \big(c \odot (\sigma(Xw) - y)\big)
 + 2\lambda w,
 \end{equation}
-with $c_n = w_+$ if $y_n = 1$ and $c_n = 1$ otherwise.
+where $c_n = w_+$ if $y_n = 1$ and $c_n = 1$ otherwise.
 
-\todo{describe the $L_2$-regularized SVM: loss, $\lambda$, step size,
-iterations, label convention, and any other models}
+\textbf{$L_2$-regularized SVM.} With labels $y_n \in \{-1, 1\}$, we minimize
+$\frac{1}{\sum_n c_n}\sum_n c_n \max(0, 1 - y_n x_n^\top w) +
+\frac{\lambda}{2}\|w\|^2$ with $\lambda = 10^{-3}$, using full-batch
+subgradient descent (500 steps, step size $0.1/\sqrt{t+1}$) and returning the
+average of all iterates. Without averaging, the last iterate oscillated and
+the F1 varied from 0.23 to 0.42 across folds.
 
 \subsection{Evaluation protocol}
 
 Models are compared with 5-fold cross-validation (random seed 1, the same
 folds for every model), reporting the mean $\pm$ standard deviation of F1. In
-each fold the decision threshold is chosen on the validation fold by
-searching 0.05 to 0.60 in steps of 0.01 (up to 0.95 for weighted models). The
-ablation steps use a single 80/20 split with the same seed. The final model is
-retrained on all training data and applied to the test set with the selected
-threshold.
+each fold the decision threshold is chosen on the validation fold by a grid
+search with step 0.01 (0.05--0.60 for probabilities, 0.05--0.95 for weighted
+models, $-2$ to 2 for SVM scores). The ablation steps use a single 80/20 split
+with the same seed. The final model is retrained on all training data and
+applied to the test set with the mean of the five fold thresholds.
 
 \section{Results}
 
@@ -141,10 +145,11 @@ Step & Change & Val.\ F1 & Test F1 \\
 \end{table}
 
 Table~\ref{tab:methods} compares all methods on the final preprocessing with
-5-fold CV. Logistic and regularized logistic regression are best and equal;
-ridge is about 0.009 lower, roughly three standard deviations. The selected
-threshold is stable across folds (0.19--0.21 for unweighted logistic), and
-both submitted models score about 0.01 higher on the test set than in CV.
+5-fold CV. Logistic regression is best, with or without regularization and
+class weights; ridge and the weighted SVM are about 0.01 lower, three standard
+deviations. The selected threshold is stable across folds (0.19--0.21 for
+unweighted logistic), and both submitted models score about 0.01 higher on
+the test set than in CV, so CV ranks the models reliably.
 
 \begin{table}[htbp]
 \centering
@@ -154,16 +159,17 @@ both submitted models score about 0.01 higher on the test set than in CV.
 \toprule
 Method & CV F1 & Test F1 \\
 \midrule
-Logistic regression & $0.4285 \pm 0.0029$ & \\
 Weighted logistic, $w_+ = 3$ & $0.4287 \pm 0.0033$ & 0.440 \\
+Logistic regression & $0.4285 \pm 0.0029$ & \\
 Reg.\ logistic, $\lambda = 10^{-3}$ & $0.4281 \pm 0.0035$ & \\
 Weighted logistic, $w_+ = 10$ & $0.4276 \pm 0.0030$ & \\
 Ridge, $\lambda = 10^{-4}$ & $0.4197 \pm 0.0033$ & \\
-MSE GD & \todo{rerun} & \\
-MSE SGD & \todo{rerun} & \\
+SVM, $w_+ = 10$ & $0.4193 \pm 0.0027$ & \\
+SVM, $w_+ = 5$ & $0.4166 \pm 0.0047$ & \\
+SVM, unweighted & $0.4027 \pm 0.0020$ & \\
+MSE SGD & $0.147 \pm 0.020$ & \\
+MSE GD & diverged & \\
 Least squares & singular & \\
-$L_2$ SVM (teammate) & \todo{CV} & 0.446 \\
-\todo{other models} & & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -178,35 +184,44 @@ stop being treated as amounts, and ``don't know'' becomes its own indicator.
 
 \textbf{Regularization does not matter here.} With 328{,}135 examples and 423
 features the model is far from overfitting, so $\lambda$ between $10^{-5}$ and
-$10^{-3}$ gives the same F1, and unregularized logistic regression matches the
-regularized one. Squared features did not help either, likely because many
-numeric columns are already grouped (e.g.\ 5-year age bands).
+$10^{-2}$ gives the same F1, for logistic regression and SVM alike. Squared
+features did not help either, likely because many numeric columns are already
+grouped (e.g.\ 5-year age bands). 500 and 1000 iterations give the same
+training loss, so the logistic models have converged.
 
-\textbf{Threshold tuning already handles the imbalance.} Class weighting
-shifts the predicted probabilities upward, and the selected threshold moves
-with them (0.21, 0.44 and 0.52 for $w_+ = 1, 3, 10$), leaving F1 unchanged.
+\textbf{Threshold tuning already handles the imbalance.} For logistic
+regression, class weighting shifts the predicted probabilities upward and the
+selected threshold moves with them (0.21, 0.44 and 0.52 for $w_+ = 1, 3, 10$),
+leaving F1 unchanged. The test set confirms this: the unweighted and the
+$w_+ = 3$ models score 0.439 and 0.440, a difference within noise.
+
+\textbf{Hinge loss ranks worse.} The unweighted SVM pushes most negatives to a
+score of exactly $-1$, where the hinge loss stops penalizing them; the best
+threshold sits just below $-1$ in every fold and many respondents share nearly
+the same score, which limits threshold tuning. Weighting positives spreads the
+scores and recovers most of the gap (0.403 to 0.419), but the logistic loss,
+which grades every example, remains better for an F1-tuned threshold.
 
 \textbf{Method notes.} Least squares cannot be solved on this feature matrix:
 the indicators of each categorical variable sum to the bias column, so
 $X^\top X$ is singular; the $\lambda I$ term of ridge makes it invertible. MSE
-gradient descent diverges with $\gamma = 0.1$, and SGD with batch size 1 needs
-far more than $10^5$ steps to converge.
+gradient descent diverges with $\gamma = 0.1$, and SGD with batch size 1 is
+far from converged after $10^5$ steps (less than half a pass over the data).
 
 \textbf{Limitations.} The survey-code rule is a heuristic based on each
 column's maximum and misses some cases (e.g.\ 8 = ``never'' in a few
 questions). The ablation uses a single split, whose noise (about 0.003) is
 close to some of the differences. All our models are linear.
-\todo{discuss whether the SVM's hinge loss explains its higher test score}
 
 \section{Summary}
 
 On the BRFSS heart-disease task, careful preprocessing (survey codes as
-missing, one-hot encoding, median imputation, standardization) raised F1 from
-0.411 to 0.431, while model settings and class weighting gave no further gain.
-Logistic regression with an F1-tuned threshold is our best linear model, at CV
-F1 $0.428 \pm 0.003$ and test F1 0.440.
-\todo{final model, its score, and the \texttt{run.py} reproducibility
-statement}
+missing, one-hot encoding, median imputation, standardization) raised the
+validation F1 from 0.411 to 0.431, while regularization, squared features,
+class weights and the hinge loss gave no further gain. Our submitted model is
+weighted logistic regression ($w_+ = 3$, $\lambda = 10^{-3}$) with an F1-tuned
+threshold, at CV F1 $0.429 \pm 0.003$ and test F1 0.440; \texttt{run.py}
+reproduces this submission exactly.
 
 \begin{thebibliography}{1}
 \bibitem{brfss}
