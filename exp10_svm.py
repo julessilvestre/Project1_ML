@@ -93,12 +93,12 @@ def f1_score(y_true, y_pred):
     fn = np.sum((y_pred == 0) & (y_true == 1))
     return 2 * tp / (2 * tp + fp + fn)
 
-# from implementations import reg_logistic_regression
+from svm import svm_l2
 
 def best_threshold(probs, y_true):
     best_f1 = 0
     best_t = 0
-    for t in np.arange(-1, 1, 0.01):
+    for t in np.arange(-2, 2, 0.01):
         y_pred = np.where(probs > t, 1, 0)
         f1 = f1_score(y_true, y_pred)
         if f1 > best_f1:
@@ -114,19 +114,21 @@ np.random.seed(1)
 indices = np.random.permutation(len(y))
 folds = np.array_split(indices, k)
 
-f1_list = []
-for i in range(k):
-    val_idx = folds[i]
-    tr_idx = np.setdiff1d(indices, val_idx)
+for pw in [5, 10]:
+    f1_list = []
+    for i in range(k):
+        val_idx = folds[i]
+        tr_idx = np.setdiff1d(indices, val_idx)
 
-    w, loss = svm_function(2 * y[tr_idx] - 1, x_train[tr_idx], ...)
-    t, f1 = best_threshold(x_train[val_idx] @ w, y[val_idx])
+        y_svm = 2 * y[tr_idx] - 1
+        w, loss = svm_l2(y_svm, x_train[tr_idx], 1e-3, np.zeros(x_train.shape[1]), 500, 0.1, pw)
+        t, f1 = best_threshold(x_train[val_idx] @ w, y[val_idx])
 
-    print("fold", i + 1, "| threshold", round(t, 2), "| F1", round(f1, 4))
-    f1_list.append(f1)
+        print("pos_weight", pw, "| fold", i + 1, "| loss", round(loss, 4), "| threshold", round(t, 2), "| F1", round(f1, 4))
+        f1_list.append(f1)
 
-f1_list = np.array(f1_list)
-print("CV F1: mean", round(f1_list.mean(), 4), "| std", round(f1_list.std(), 4))
+    f1_list = np.array(f1_list)
+    print("pos_weight", pw, "| CV F1 mean", round(f1_list.mean(), 4), "| std", round(f1_list.std(), 4))
 
-with open("results.txt", "a") as f:
-    f.write("exp10 svm 5-fold CV | mean F1 " + str(round(f1_list.mean(), 4)) + " | std " + str(round(f1_list.std(), 4)) + "\n")
+    with open("results.txt", "a") as f:
+        f.write("exp10 svm pos_weight " + str(pw) + " | CV mean F1 " + str(round(f1_list.mean(), 4)) + " | std " + str(round(f1_list.std(), 4)) + "\n")

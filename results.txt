@@ -18,3 +18,11 @@ exp8 reg_logistic | CV mean F1 0.4281 | std 0.0035
 exp9 weights w_pos 1 | CV mean F1 0.4281 | std 0.0035
 exp9 weights w_pos 3 | CV mean F1 0.4287 | std 0.0033
 exp9 weights w_pos 10 | CV mean F1 0.4276 | std 0.003
+exp10 svm lambda 0.0001 | CV mean F1 0.3533 | std 0.0688
+exp10 svm lambda 0.001 | CV mean F1 0.3559 | std 0.0347
+exp10 svm lambda 0.01 | CV mean F1 0.3331 | std 0.09
+exp10 svm lambda 0.0001 | CV mean F1 0.4029 | std 0.002
+exp10 svm lambda 0.001 | CV mean F1 0.4027 | std 0.002
+exp10 svm lambda 0.01 | CV mean F1 0.4018 | std 0.0021
+exp10 svm pos_weight 5 | CV mean F1 0.4166 | std 0.0047
+exp10 svm pos_weight 10 | CV mean F1 0.4193 | std 0.0027
